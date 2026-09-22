@@ -18,6 +18,8 @@ PC 版 Chrome または Edge で <http://127.0.0.1:8765> を開きます。外�
 
 Python ライブラリは `.venv/`、JavaScript ライブラリは `frontend/node_modules/` に入ります。Node.js 自体は npm と別管理です。依存パッケージのグローバルインストールは不要です。
 
+本番ビルドには Geist と IBM Plex Mono のローカル Web フォントが含まれます。フォントの著作権表示と SIL Open Font License 1.1 は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) に収録しています。
+
 ## 使い方
 
 - **開く・結合**：複数ファイルを選び、順序を変更して開きます。ファイルごとの行順は保持します。

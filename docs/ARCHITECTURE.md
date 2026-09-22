@@ -20,8 +20,8 @@ flowchart LR
 
 ```text
 data_loom/
-├── AGENTS.md                       開発規約
 ├── README.md                       起動・使用・保管・検証手順
+├── THIRD_PARTY_NOTICES.md          配布する Web フォントの著作権・OFL-1.1
 ├── pyproject.toml                  Python 依存と data-loom コマンド
 ├── uv.lock                         Python 依存の固定
 ├── .python-version                 Python バージョン指定
