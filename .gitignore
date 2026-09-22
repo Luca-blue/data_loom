@@ -1,0 +1,21 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Frontend and local verification artifacts
+node_modules/
+src/data_loom/web/static/
+artifacts/
+*.tsbuildinfo
+
+.pytest_cache/
+
+# Local agent instructions are specific to this workspace.
+AGENTS.md
