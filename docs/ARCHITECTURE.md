@@ -46,6 +46,7 @@ data_loom/
 │   ├── tsconfig.json              TypeScript 設定
 │   ├── vite.config.ts             React ビルドと配信先設定
 │   ├── index.html                 日本語 HTML の入口
+│   ├── public/favicon.svg         タブに表示するロゴの SVG
 │   ├── node_modules/              ローカル依存（Git 管理外）
 │   └── src/
 │       ├── main.tsx               React とローカルフォントの読込
@@ -73,6 +74,7 @@ data_loom/
 │   ├── README.md                  実画面検証の手順
 │   ├── verify_ui.py               Playwright の headed 検証
 │   ├── verify_pins.py             ピン順序・復元・四角い表の実画面検証
+│   ├── verify_favicon.py          タブ用 SVG の配信と実画面検証
 │   ├── verify_field_layout.py     表・詳細配置と設定パネルの実画面検証
 │   ├── verify_edges.py            分割・不正行・保存失敗の実画面検証
 │   ├── native_dialog.py           実画面の OS ダイアログ操作
@@ -126,6 +128,7 @@ OPFS は作業 ID ごとのディレクトリに `source-N.idx` と `results.idx
 - `generate_fixtures.generate()`：境界条件と指定 GiB のデータを逐次生成。`main()` は CLI。
 - `verify_ui.verify()`：headed ブラウザを起動して実操作、画像、trace、通信、出力の一致を検証。`main()` は実行設定。
 - `verify_pins.verify()`：表・詳細の先頭、全幅の最上段への移動、解除・作業復元、角丸なし、375/768/1255/1600/1920px の表示と KEY の上下中央揃えを実画面で検証します。
+- `verify_favicon.verify()`：表示中の Chromium で SVG アイコンの参照と配信応答を確認します。
 - `verify_field_layout.verify()`：1255×742 の実画面で null と数値のコンパクト表示、手動サイズ、設定確定・外側クリック・Esc・自動サイズ復帰を確認します。
 - `verify_edges.verify()`：実 OPFS ディレクトリへの3方式の分割、行操作、不正編集・KEY 衝突、容量不足の故障注入、複数タブ、不正行・巨大行の保全、変更された元ファイルの拒否を検証します。
 - `BrowserMetrics`：CDP セッションを作り、`sample()` でページと Worker のヒープを集計。`_receive()` が Worker の非同期測定結果を受け取ります。

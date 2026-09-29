@@ -12,6 +12,7 @@ Playwright は既存の Chromium を `headless=False` で起動し、検証ご�
 
 - `verify_ui.py`：表示中のブラウザで読み込み、結合、編集、数値精度、Undo／Redo、枠サイズ、検索、一括 KEY 操作、レスポンシブ、復元、通信を検証。
 - `verify_pins.py`：表・詳細・全幅のピン留め、解除、作業復元と四角い枠を実画面で確認。
+- `verify_favicon.py`：タブ用 SVG アイコンが配信され、`favicon.ico` への余分なリクエストが出ないことを実画面で確認。
 - `verify_field_layout.py`：短い値の表・詳細配置と設定パネルの終了操作を、1255×742 の実画面で確認。
 - `verify_edges.py`：実 OPFS ディレクトリへの3方式の分割と、診断・保存失敗・タブ排他・元ファイル変更を検証。`uv run python tools/verify_edges.py` で実行します。
 - `native_dialog.py`：X11 環境で表示中のファイルダイアログにキーを送る補助。`--native-dialogs` を付けると、実ファイルへの書き出しも検証します。実行中はキーボード・マウスを操作しないでください。X11 以外では保存ダイアログを手動で確認してください。

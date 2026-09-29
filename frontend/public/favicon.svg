@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Data Loom">
+  <rect width="64" height="64" fill="#090f17"/>
+  <rect x="11" y="11" width="42" height="42" fill="none" stroke="#9bc7ff" stroke-width="4"/>
+  <path d="M32 13v38" fill="none" stroke="#9bc7ff" stroke-width="4"/>
+  <path d="M17 20h9M38 20h9" fill="none" stroke="#9bc7ff" stroke-width="3"/>
+</svg>
