@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { call, onUpdate } from "./client";
 import { Editor } from "../records/Editor";
+import { LAYOUT_SEPARATOR } from "../records/nested";
 import { RowList } from "../records/RowList";
 import { Dialog } from "../shared/Dialog";
 import { formatBytes, parseRecord } from "../shared/json";
@@ -78,7 +79,11 @@ export function App() {
   });
   const [storage, setStorage] = useState<StorageEstimate>({});
   const keyCandidates = useMemo(() => {
-    const keys = new Set(Object.keys(workspace?.layouts ?? {}));
+    const keys = new Set(
+      Object.keys(workspace?.layouts ?? {}).filter(
+        (key) => !key.includes(LAYOUT_SEPARATOR),
+      ),
+    );
     if (modal === "search" && row?.text && !row.issue) {
       try {
         for (const key of Object.keys(parseRecord(row.text))) keys.add(key);

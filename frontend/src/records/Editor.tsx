@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   Check,
   RotateCcw,
@@ -11,12 +11,24 @@ import {
   Brackets,
   Braces,
   ChevronDown,
+  ChevronRight,
 } from "lucide-react";
-import { parseRecord, jsonText, valueType, fieldValue } from "../shared/json";
+import { parseRecord, jsonText } from "../shared/json";
 import { automaticLayout } from "./layout";
+import {
+  buildContainer,
+  containerAt,
+  fieldsOf,
+  isCompound,
+  layoutKey,
+  replaceAt,
+  resolvePath,
+  summarize,
+} from "./nested";
+import type { FieldDraft, Fields, Segment } from "./nested";
 import type { Layout, Row } from "../shared/types";
 
-/** KEY の型・文量に合わせた編集欄を表示する。 */
+/** KEY の型・文量に合わせた編集欄を、ネストの階層ごとに表示する。 */
 export function Editor({
   row,
   layouts,
@@ -32,29 +44,27 @@ export function Editor({
   onLayout: (key: string, layout: Layout) => void;
   onDirty: (dirty: boolean) => void;
 }) {
-  const [draft, setDraft] = useState<
-    Record<string, { type: string; text: string }>
-  >({});
-  const originalFields = useRef<Record<string, { type: string; text: string }>>(
-    {},
-  );
+  const [root, setRoot] = useState<any>(null);
+  const [path, setPath] = useState<Segment[]>([]);
+  const [draft, setDraft] = useState<Fields>({});
+  const originalFields = useRef<Fields>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    const next: Record<string, { type: string; text: string }> =
-      Object.create(null);
-    if (row.text && !row.issue)
-      for (const [key, value] of Object.entries(parseRecord(row.text)))
-        next[key] = {
-          type: valueType(value),
-          text: typeof value === "string" ? value : jsonText(value, true),
-        };
-    originalFields.current = next;
-    setDraft(next);
+  const show = (value: any, next: Segment[]) => {
+    const target = resolvePath(value, next);
+    const fields = fieldsOf(containerAt(value, target) ?? {});
+    originalFields.current = fields;
+    setRoot(value);
+    setPath(target);
+    setDraft(fields);
     setErrors({});
+  };
+  const reset = () => {
+    show(row.text && !row.issue ? parseRecord(row.text) : null, path);
     setDirty(false);
     onDirty(false);
-  }, [row.id, row.text]);
+  };
+  useEffect(reset, [row.id, row.text]);
   if (row.deleted)
     return (
       <div className="record-notice">
@@ -71,19 +81,23 @@ export function Editor({
         <p>元データは保持されます。書き出し時に不正行の扱いを選べます。</p>
       </div>
     );
-  const save = async () => {
-    const next = Object.create(null),
-      issues: Record<string, string> = Object.create(null);
-    for (const [key, field] of Object.entries(draft)) {
-      try {
-        next[key] = fieldValue(field.text, field.type);
-      } catch (error) {
-        issues[key] = (error as Error).message;
-      }
-    }
+  const array = Array.isArray(containerAt(root, path));
+  const commit = () => {
+    const { value, issues } = buildContainer(draft, array);
     setErrors(issues);
-    if (Object.keys(issues).length) return;
-    if (await onSave(jsonText(next))) {
+    return Object.keys(issues).length
+      ? undefined
+      : replaceAt(root, path, value);
+  };
+  const open = (next: Segment[]) => {
+    const committed = commit();
+    if (committed !== undefined) show(committed, next);
+  };
+  const save = async () => {
+    const committed = commit();
+    if (committed === undefined) return;
+    setRoot(committed);
+    if (await onSave(jsonText(committed))) {
       setDirty(false);
       onDirty(false);
     }
@@ -97,13 +111,17 @@ export function Editor({
     detail: [],
     full: [],
   };
+  const savedLayout = (key: string) => {
+    const slot = layoutKey(path, key, array);
+    return Object.hasOwn(layouts, slot) ? layouts[slot] : undefined;
+  };
   const ordered = Object.entries(draft).sort(
     ([a], [b]) =>
-      Number(Object.hasOwn(layouts, b) && layouts[b].pinned === true) -
-      Number(Object.hasOwn(layouts, a) && layouts[a].pinned === true),
+      Number(savedLayout(b)?.pinned === true) -
+      Number(savedLayout(a)?.pinned === true),
   );
   for (const [key, field] of ordered) {
-    const saved = Object.hasOwn(layouts, key) ? layouts[key] : undefined;
+    const saved = savedLayout(key);
     const baseline = originalFields.current[key] ?? field;
     const automatic = automaticLayout(baseline.text, baseline.type);
     const layout = saved?.manual
@@ -111,9 +129,10 @@ export function Editor({
       : { ...automatic, placement: saved?.placement, pinned: saved?.pinned };
     const placement =
       layout.placement ??
+      (isCompound(baseline.type) ||
       (automatic.width === "half" &&
-      !baseline.text.includes("\n") &&
-      baseline.text.length <= 80
+        !baseline.text.includes("\n") &&
+        baseline.text.length <= 80)
         ? "table"
         : "detail");
     groups[
@@ -121,7 +140,8 @@ export function Editor({
     ].push(
       <Field
         key={key}
-        name={key}
+        name={array ? `[${key}]` : key}
+        dataKey={key}
         field={field}
         layout={layout}
         compact={placement === "table"}
@@ -133,7 +153,8 @@ export function Editor({
           setDirty(true);
           onDirty(true);
         }}
-        onLayout={(next) => onLayout(key, next)}
+        onLayout={(next) => onLayout(layoutKey(path, key, array), next)}
+        onOpen={() => open([...path, array ? Number(key) : key])}
       />,
     );
   }
@@ -147,23 +168,7 @@ export function Editor({
           </span>
         </span>
         <div className="button-row">
-          <button
-            disabled={!dirty || disabled}
-            onClick={() => {
-              const original = parseRecord(row.text!);
-              const next: typeof draft = Object.create(null);
-              for (const [key, value] of Object.entries(original))
-                next[key] = {
-                  type: valueType(value),
-                  text:
-                    typeof value === "string" ? value : jsonText(value, true),
-                };
-              setDraft(next);
-              setDirty(false);
-              onDirty(false);
-              setErrors({});
-            }}
-          >
+          <button disabled={!dirty || disabled} onClick={reset}>
             <RotateCcw size={14} />
             取り消す
           </button>
@@ -177,6 +182,32 @@ export function Editor({
           </button>
         </div>
       </div>
+      {!!path.length && (
+        <nav className="record-path" aria-label="階層">
+          <button type="button" onClick={() => open([])}>
+            行
+          </button>
+          {path.map((segment, index) => {
+            const label =
+              typeof segment === "number" ? `[${segment}]` : segment;
+            return (
+              <Fragment key={index}>
+                <ChevronRight size={12} aria-hidden="true" />
+                {index === path.length - 1 ? (
+                  <span aria-current="location">{label}</span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => open(path.slice(0, index + 1))}
+                  >
+                    {label}
+                  </button>
+                )}
+              </Fragment>
+            );
+          })}
+        </nav>
+      )}
       <div
         className={`record-layout ${!groups.table.length ? "without-table" : ""}`}
       >
@@ -209,7 +240,11 @@ export function Editor({
       </div>
       {!Object.keys(draft).length && (
         <div className="record-notice">
-          <p>空のオブジェクトです。「KEY 操作」から項目を追加できます。</p>
+          <p>
+            {path.length
+              ? `空の${array ? "配列" : "オブジェクト"}です。上の階層で配置を「右の詳細」にすると、JSON を直接編集できます。`
+              : "空のオブジェクトです。「KEY 操作」から項目を追加できます。"}
+          </p>
         </div>
       )}
     </>
@@ -218,6 +253,7 @@ export function Editor({
 
 function Field({
   name,
+  dataKey,
   field,
   layout,
   compact,
@@ -226,16 +262,19 @@ function Field({
   error,
   onChange,
   onLayout,
+  onOpen,
 }: {
   name: string;
-  field: { type: string; text: string };
+  dataKey: string;
+  field: FieldDraft;
   layout: Layout;
   compact: boolean;
   placement: "table" | "detail" | "full";
   disabled: boolean;
   error?: string;
-  onChange: (field: { type: string; text: string }) => void;
+  onChange: (field: FieldDraft) => void;
   onLayout: (layout: Layout) => void;
+  onOpen: () => void;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const settings = useRef<HTMLDetailsElement>(null);
@@ -272,11 +311,22 @@ function Field({
   return (
     <section
       className={`field ${compact ? "compact-field" : ""} ${placement === "full" ? "wide" : ""}`}
-      data-key={name}
+      data-key={dataKey}
       data-pinned={!!layout.pinned}
     >
       <header className="field-header">
         <label htmlFor={id}>{name}</label>
+        {!compact && isCompound(field.type) && (
+          <button
+            type="button"
+            className="field-open"
+            aria-label={`${name} を開く`}
+            onClick={onOpen}
+          >
+            開く
+            <ChevronRight size={14} />
+          </button>
+        )}
         <button
           type="button"
           className="field-pin"
@@ -370,6 +420,17 @@ function Field({
         </select>
       ) : field.type === "null" ? (
         <div className="null-value">null</div>
+      ) : compact && isCompound(field.type) ? (
+        <button
+          type="button"
+          id={id}
+          className="field-jump"
+          aria-label={`${name} を開く`}
+          onClick={onOpen}
+        >
+          <span>{summarize(field.text, field.type) ?? "JSON を確認"}</span>
+          <ChevronRight size={14} />
+        </button>
       ) : (
         <textarea
           ref={ref}
@@ -409,17 +470,22 @@ function Field({
             aria-label={`${name} の型`}
             disabled={disabled}
             value={field.type}
-            onChange={(event) =>
+            onChange={(event) => {
+              const type = event.target.value;
               onChange({
-                type: event.target.value,
+                type,
                 text:
-                  event.target.value === "null"
+                  type === "null"
                     ? "null"
-                    : event.target.value === "boolean"
+                    : type === "boolean"
                       ? "false"
-                      : field.text,
-              })
-            }
+                      : isCompound(type) && !summarize(field.text, type)
+                        ? type === "array"
+                          ? "[]"
+                          : "{}"
+                        : field.text,
+              });
+            }}
           >
             {["string", "number", "boolean", "null", "array", "object"].map(
               (type) => (
