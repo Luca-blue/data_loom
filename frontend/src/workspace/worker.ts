@@ -17,6 +17,8 @@ import {
   jsonText,
 } from "../shared/json";
 import { scanFile, readEntry, hashFile } from "../records/index";
+import { LAYOUT_SEPARATOR } from "../records/nested";
+import { summarizeRow } from "../records/summary";
 import { matches, transformKey } from "../operations/transform";
 import * as storage from "./storage";
 
@@ -369,9 +371,21 @@ async function rowData(id: number, detail = false): Promise<Row> {
       issue = (e as Error).message;
     }
   }
+  const summary =
+    raw.flags === 1
+      ? { preview: text.slice(0, 180).replace(/\s+/g, " ") }
+      : summarizeRow(
+          text,
+          Object.entries(workspace?.layouts ?? {})
+            .filter(
+              ([key, layout]) =>
+                layout.pinned === true && !key.includes(LAYOUT_SEPARATOR),
+            )
+            .map(([key]) => key),
+        );
   return {
     ...base,
-    preview: text.slice(0, 180).replace(/\s+/g, " "),
+    ...summary,
     text: detail ? text : undefined,
     issue,
   };

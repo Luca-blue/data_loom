@@ -39,6 +39,7 @@ export type Patch = {
 export type Row = {
   id: number;
   text?: string;
+  title?: string;
   preview: string;
   issue?: string;
   oversized?: boolean;

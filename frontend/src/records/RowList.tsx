@@ -107,13 +107,15 @@ export function RowList({
               </span>
               <span className="row-copy">
                 <span className="row-title">
-                  {row.deleted
-                    ? "削除済み"
-                    : row.oversized
-                      ? "大きなレコード"
-                      : row.issue
-                        ? "⚠ 要確認"
-                        : `レコード ${row.id + 1}`}
+                  <span className="row-title-text">
+                    {row.deleted
+                      ? "削除済み"
+                      : row.oversized
+                        ? "大きなレコード"
+                        : row.issue
+                          ? "⚠ 要確認"
+                          : (row.title ?? `レコード ${row.id + 1}`)}
+                  </span>
                   {row.edited && !row.deleted && <i aria-label="編集済み" />}
                 </span>
                 <span className="row-preview">{row.preview}</span>
