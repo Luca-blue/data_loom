@@ -77,11 +77,10 @@ def verify(url: str, output: Path, native: bool = False, large: Path | None = No
                 page.get_by_role("button", name="行 100000", exact=True).click()
                 expect(page.get_by_label("id", exact=True)).to_have_value("900719925474099312345")
                 report["random_access_seconds"] = time.monotonic() - started
-                page.get_by_role("button", name="検索・抽出", exact=True).click()
                 page.get_by_label("全文に含まれる文字列", exact=True).fill("不存在の検索語")
                 started = time.monotonic()
-                page.get_by_role("button", name="抽出する", exact=True).click()
-                while page.get_by_role("dialog").count():
+                page.get_by_role("button", name="検索", exact=True).click()
+                while not page.get_by_role("button", name="書き出す", exact=True).is_enabled():
                     if time.monotonic() - started > 1800:
                         raise TimeoutError("検索が30分以内に完了しませんでした")
                     samples.append(metrics.sample())
@@ -109,12 +108,29 @@ def verify(url: str, output: Path, native: bool = False, large: Path | None = No
                 page.get_by_label("response の枠サイズ", exact=True).click()
                 page.screenshot(path=str(output / "editor.png"), full_page=True)
                 report["scenarios"].append("merge-edit-precision-undo-redo-resize")
-                page.get_by_role("button", name="検索・抽出", exact=True).click()
                 page.get_by_label("全文に含まれる文字列", exact=True).fill("検索対象")
+                page.get_by_label("全文に含まれる文字列", exact=True).press("Enter")
+                expect(page.get_by_role("button", name="行 2", exact=True)).to_be_visible()
+                expect(page.get_by_role("button", name="行 1", exact=True)).to_have_count(0)
+                page.get_by_role("button", name="抽出を解除", exact=True).click()
+                page.get_by_label("全文に含まれる文字列", exact=True).fill("")
+                page.get_by_role("button", name="条件で抽出", exact=True).click()
+                candidates = page.locator("#search-key-candidates option")
+                options = candidates.evaluate_all("options => options.map(option => option.value)")
+                assert "title" in options and "quality" in options
+                page.get_by_label("条件 1 の KEY", exact=True).fill("title")
+                expect(page.get_by_label("条件 1 の KEY", exact=True)).to_have_attribute("list", "search-key-candidates")
+                page.get_by_label("値", exact=True).fill("検索対象")
+                page.screenshot(path=str(output / "search-key-options.png"))
                 page.get_by_role("button", name="抽出する", exact=True).click()
                 expect(page.get_by_role("button", name="行 2", exact=True)).to_be_visible()
                 expect(page.get_by_role("button", name="行 1", exact=True)).to_have_count(0)
                 page.get_by_role("button", name="抽出を解除", exact=True).click()
+                page.get_by_role("button", name="条件で抽出", exact=True).click()
+                page.get_by_label("条件 1 の KEY", exact=True).fill("未登録のKEY")
+                expect(page.get_by_label("条件 1 の KEY", exact=True)).to_have_value("未登録のKEY")
+                page.get_by_role("button", name="閉じる", exact=True).click()
+                report["scenarios"].append("search-key-dropdown-and-manual-input")
                 page.get_by_role("button", name="KEY 操作", exact=True).click()
                 page.get_by_label("対象", exact=True).select_option("all")
                 page.get_by_label("KEY 名", exact=True).fill("split")
@@ -123,6 +139,9 @@ def verify(url: str, output: Path, native: bool = False, large: Path | None = No
                 expect(page.get_by_role("button", name="変更を適用", exact=True)).to_be_enabled()
                 page.get_by_role("button", name="変更を適用", exact=True).click()
                 expect(page.get_by_label("split", exact=True)).to_have_value("train")
+                page.get_by_role("button", name="条件で抽出", exact=True).click()
+                assert "split" in page.locator("#search-key-candidates option").evaluate_all("options => options.map(option => option.value)")
+                page.get_by_role("button", name="閉じる", exact=True).click()
                 report["scenarios"].append("search-and-bulk-key-add")
                 if native_dialog:
                     export_path = (output / f"export-{time.time_ns()}.jsonl").resolve()
@@ -146,6 +165,11 @@ def verify(url: str, output: Path, native: bool = False, large: Path | None = No
                     page.set_viewport_size({"width": width, "height": 1000})
                     page.screenshot(path=str(output / f"editor-{width}.png"), full_page=True)
                     assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), f"horizontal overflow at {width}"
+                    if width in [320, 768]:
+                        page.get_by_role("button", name="条件で抽出", exact=True).click()
+                        assert page.get_by_role("dialog").evaluate("el => el.scrollWidth <= el.clientWidth"), f"search dialog overflow at {width}"
+                        page.screenshot(path=str(output / f"search-keys-{width}.png"))
+                        page.get_by_role("button", name="閉じる", exact=True).click()
                 page.set_viewport_size({"width": 1440, "height": 1000})
                 page.reload()
                 page.get_by_role("button", name="保存した作業", exact=True).click()

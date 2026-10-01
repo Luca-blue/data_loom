@@ -10,7 +10,7 @@ uv run python tools/verify_ui.py --native-dialogs
 
 Playwright は既存の Chromium を `headless=False` で起動し、検証ごとに `artifacts/ui-.../browser-profile/` を使用します。普段使いのブラウザプロファイルは使用しません。インストール先を限定する場合は、インストール時と実行時の両方に `PLAYWRIGHT_BROWSERS_PATH=/tmp/data-loom-browsers` を指定してください。
 
-- `verify_ui.py`：表示中のブラウザで読み込み、結合、編集、数値精度、Undo／Redo、枠サイズ、検索、一括 KEY 操作、レスポンシブ、復元、通信を検証。
+- `verify_ui.py`：表示中のブラウザで読み込み、結合、編集、数値精度、Undo／Redo、枠サイズ、KEY 候補と手入力による検索、一括 KEY 操作、レスポンシブ、復元、通信を検証。
 - `verify_pins.py`：表・詳細・全幅のピン留め、解除、作業復元と四角い枠を実画面で確認。
 - `verify_favicon.py`：タブ用 SVG アイコンが配信され、`favicon.ico` への余分なリクエストが出ないことを実画面で確認。
 - `verify_field_layout.py`：短い値の表・詳細配置と設定パネルの終了操作を、1255×742 の実画面で確認。

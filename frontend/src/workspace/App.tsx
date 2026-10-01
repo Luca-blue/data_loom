@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -27,7 +27,7 @@ import { call, onUpdate } from "./client";
 import { Editor } from "../records/Editor";
 import { RowList } from "../records/RowList";
 import { Dialog } from "../shared/Dialog";
-import { formatBytes } from "../shared/json";
+import { formatBytes, parseRecord } from "../shared/json";
 import type {
   Workspace,
   Row,
@@ -77,6 +77,17 @@ export function App() {
     prefix: "dataset",
   });
   const [storage, setStorage] = useState<StorageEstimate>({});
+  const keyCandidates = useMemo(() => {
+    const keys = new Set(Object.keys(workspace?.layouts ?? {}));
+    if (modal === "search" && row?.text && !row.issue) {
+      try {
+        for (const key of Object.keys(parseRecord(row.text))) keys.add(key);
+      } catch {
+        // 診断対象の行は候補に加えない。
+      }
+    }
+    return [...keys].sort((left, right) => left.localeCompare(right, "ja"));
+  }, [workspace?.layouts, row?.text, row?.issue, modal]);
   const input = useRef<HTMLInputElement>(null),
     workspaceRef = useRef<Workspace | null>(null);
   const supported =
@@ -262,10 +273,11 @@ export function App() {
     setWorkspace({ ...workspace, layouts });
     call("layout", { layouts }).catch((e) => setError(e.message));
   };
-  const search = () =>
+  const search = (next: Filter = filter) =>
     task(async () => {
       if (!discard()) return;
-      const result = await call("search", filter);
+      const result = await call("search", next);
+      setFilter(next);
       setFilterActive(true);
       setDirty(false);
       setModal(null);
@@ -473,14 +485,42 @@ export function App() {
             </div>
           </section>
           <nav className="toolbar" aria-label="データ操作">
+            <form
+              className="quick-search"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!locked) search({ text: filter.text, conditions: [] });
+              }}
+            >
+              <Search size={16} aria-hidden="true" />
+              <input
+                aria-label="全文に含まれる文字列"
+                placeholder="全文検索…"
+                value={filter.text}
+                disabled={locked}
+                onChange={(event) =>
+                  setFilter({ ...filter, text: event.target.value })
+                }
+              />
+              <button type="submit" disabled={locked}>
+                検索
+              </button>
+            </form>
             <div className="button-row">
               <button
                 disabled={locked}
-                onClick={() => setModal("search")}
+                onClick={() => {
+                  if (!filter.conditions.length)
+                    setFilter({
+                      ...filter,
+                      conditions: [{ key: "", op: "contains", value: "" }],
+                    });
+                  setModal("search");
+                }}
                 className={filterActive ? "active" : ""}
               >
                 <Search size={15} />
-                検索・抽出
+                条件で抽出
               </button>
               {filterActive && (
                 <button
@@ -813,37 +853,46 @@ export function App() {
           busy={busy}
           progress={progress}
           onCancel={() => call("cancel")}
-          title="検索・抽出"
+          title="条件で抽出"
           onClose={() => {
             if (!busy) setModal(null);
           }}
         >
-          <label>
-            全文に含まれる文字列
-            <input
-              value={filter.text}
-              onChange={(e) => setFilter({ ...filter, text: e.target.value })}
-            />
-          </label>
           <p className="help">
-            複数条件はすべて一致する行を抽出します。最上位 KEY を対象にします。
+            KEY・条件・値を指定してください。複数条件はすべて一致する行を抽出します。
           </p>
+          {filter.text && (
+            <p className="search-context">
+              全文検索「{filter.text}」と組み合わせます。
+            </p>
+          )}
+          <datalist id="search-key-candidates">
+            {keyCandidates.filter(Boolean).map((key) => (
+              <option key={key} value={key} />
+            ))}
+          </datalist>
           {filter.conditions.map((condition, i) => (
             <div className="condition" key={i}>
-              <label>
-                KEY
-                <input
-                  value={condition.key}
-                  onChange={(e) =>
-                    setFilter({
-                      ...filter,
-                      conditions: filter.conditions.map((c, n) =>
-                        n === i ? { ...c, key: e.target.value } : c,
-                      ),
-                    })
-                  }
-                />
-              </label>
+              <div className="condition-key">
+                <label>
+                  KEY
+                  <input
+                    aria-label={`条件 ${i + 1} の KEY`}
+                    list="search-key-candidates"
+                    placeholder="選択または入力"
+                    autoComplete="off"
+                    value={condition.key}
+                    onChange={(e) =>
+                      setFilter({
+                        ...filter,
+                        conditions: filter.conditions.map((c, n) =>
+                          n === i ? { ...c, key: e.target.value } : c,
+                        ),
+                      })
+                    }
+                  />
+                </label>
+              </div>
               <label>
                 条件
                 <select
@@ -913,7 +962,11 @@ export function App() {
             条件を追加
           </button>
           <div className="dialog-actions">
-            <button className="primary" disabled={busy} onClick={search}>
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={() => search()}
+            >
               <Search size={15} />
               抽出する
             </button>
