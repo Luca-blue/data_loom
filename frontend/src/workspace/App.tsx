@@ -22,6 +22,8 @@ import {
   HardDrive,
   Check,
   Braces,
+  AArrowDown,
+  AArrowUp,
 } from "lucide-react";
 import { call, onUpdate } from "./client";
 import { Editor } from "../records/Editor";
@@ -38,6 +40,11 @@ import type {
   ExportOptions,
   Layout,
 } from "../shared/types";
+
+const FONT_KEY = "data-loom:font-size",
+  FONT_DEFAULT = 14,
+  FONT_MIN = 11,
+  FONT_MAX = 20;
 
 /** JSONL 作業の選択・編集・加工・出力を統合する画面。 */
 export function App() {
@@ -95,6 +102,31 @@ export function App() {
   }, [workspace?.layouts, row?.text, row?.issue, modal]);
   const input = useRef<HTMLInputElement>(null),
     workspaceRef = useRef<Workspace | null>(null);
+  const layoutSync = useRef<{
+    busy: boolean;
+    pending: boolean;
+    refresh: boolean;
+    local: Record<string, Layout> | null;
+  }>({ busy: false, pending: false, refresh: false, local: null });
+  const [pathSlot, setPathSlot] = useState<HTMLElement | null>(null),
+    [actionSlot, setActionSlot] = useState<HTMLElement | null>(null);
+  const [fontSize, setFontSize] = useState(() => {
+    try {
+      const stored = Number(localStorage.getItem(FONT_KEY));
+      return stored >= FONT_MIN && stored <= FONT_MAX ? stored : FONT_DEFAULT;
+    } catch {
+      return FONT_DEFAULT;
+    }
+  });
+  const changeFont = (size: number) => {
+    const next = Math.max(FONT_MIN, Math.min(FONT_MAX, size));
+    setFontSize(next);
+    try {
+      localStorage.setItem(FONT_KEY, String(next));
+    } catch {
+      // 保存できない環境では、この画面を開いている間だけ反映する。
+    }
+  };
   const supported =
     !!window.showSaveFilePicker &&
     !!navigator.storage?.getDirectory &&
@@ -114,10 +146,15 @@ export function App() {
       if (update.progress) setProgress(update.progress);
       if (update.workspace) {
         const previous = workspaceRef.current;
-        workspaceRef.current = update.workspace;
-        setWorkspace(update.workspace);
-        if (!previous || previous.baseCount !== update.workspace.baseCount)
-          refresh();
+        // 保存待ちの表示設定がある間は、画面側の最新の設定を優先する。
+        const sync = layoutSync.current;
+        const next =
+          sync.busy && sync.local
+            ? { ...update.workspace, layouts: sync.local }
+            : update.workspace;
+        workspaceRef.current = next;
+        setWorkspace(next);
+        if (!previous || previous.baseCount !== next.baseCount) refresh();
       }
     });
     const leave = (event: BeforeUnloadEvent) => {
@@ -274,9 +311,35 @@ export function App() {
     });
   const changeLayout = (key: string, layout: Layout) => {
     if (!workspace || busy) return;
-    const layouts = { ...workspace.layouts, [key]: layout };
+    const sync = layoutSync.current;
+    const base = (sync.busy && sync.local) || workspace.layouts;
+    const layouts = { ...base, [key]: layout };
+    // 行一覧はピン留めした KEY の値を表示するため、ピンの変更時に取り直す。
+    if (!!base[key]?.pinned !== !!layout.pinned) sync.refresh = true;
+    sync.local = layouts;
+    sync.pending = true;
     setWorkspace({ ...workspace, layouts });
-    call("layout", { layouts }).catch((e) => setError(e.message));
+    if (sync.busy) return;
+    sync.busy = true;
+    // スライダーやドラッグの連続した変更は、保存中の分をまとめて最新だけを送る。
+    (async () => {
+      try {
+        while (sync.pending) {
+          sync.pending = false;
+          await call("layout", { layouts: sync.local });
+          if (sync.refresh) {
+            sync.refresh = false;
+            refresh();
+          }
+        }
+      } catch (e) {
+        sync.pending = false;
+        setError((e as Error).message);
+      } finally {
+        sync.busy = false;
+        sync.local = null;
+      }
+    })();
   };
   const search = (next: Filter = filter) =>
     task(async () => {
@@ -611,7 +674,12 @@ export function App() {
               onSelect={choose}
               onError={setError}
             />
-            <main className="detail">
+            <main
+              className="detail"
+              style={
+                { "--record-font-size": `${fontSize}px` } as React.CSSProperties
+              }
+            >
               <header className="detail-header">
                 <div className="detail-title">
                   <button
@@ -621,14 +689,28 @@ export function App() {
                   >
                     <List size={17} />
                   </button>
-                  <span className="mono">
-                    {row
-                      ? `ROW ${String(row.id + 1).padStart(3, "0")}`
-                      : "RECORD"}
-                  </span>
+                  {!row && <span className="mono">RECORD</span>}
+                  <span className="path-slot" ref={setPathSlot} />
                   <span className="subtle">{row?.source}</span>
                 </div>
+                <div className="record-actions" ref={setActionSlot} />
                 <div className="button-row">
+                  <button
+                    aria-label="文字を小さく"
+                    title={`文字を小さく（現在 ${fontSize}px）`}
+                    disabled={fontSize <= FONT_MIN}
+                    onClick={() => changeFont(fontSize - 1)}
+                  >
+                    <AArrowDown size={16} />
+                  </button>
+                  <button
+                    aria-label="文字を大きく"
+                    title={`文字を大きく（現在 ${fontSize}px）`}
+                    disabled={fontSize >= FONT_MAX}
+                    onClick={() => changeFont(fontSize + 1)}
+                  >
+                    <AArrowUp size={16} />
+                  </button>
                   <button
                     aria-label="前の行"
                     disabled={selected <= 0}
@@ -672,7 +754,11 @@ export function App() {
                 {row ? (
                   <Editor
                     row={row}
+                    label={`ROW ${String(row.id + 1).padStart(3, "0")}`}
                     layouts={workspace.layouts}
+                    scale={fontSize / FONT_DEFAULT}
+                    pathSlot={pathSlot}
+                    actionSlot={actionSlot}
                     disabled={!ready}
                     onSave={async (text) =>
                       !!(await mutate({ row: selected, text }))

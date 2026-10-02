@@ -27,7 +27,7 @@ def verify() -> None:
         page.get_by_role("button", name="response をピン留め", exact=True).click()
         expect(page.locator(".detail-fields .field").first).to_have_attribute("data-key", "response")
         page.get_by_label("context の枠サイズ", exact=True).click()
-        page.get_by_label("context の配置", exact=True).select_option("full")
+        page.get_by_role("group", name="context の配置", exact=True).get_by_role("button", name="全幅", exact=True).click()
         expect(page.locator(".record-layout > .full-fields").last.locator(".field")).to_have_attribute("data-key", "context")
         page.get_by_role("button", name="context をピン留め", exact=True).click()
         expect(page.locator(".record-layout > div").first).to_have_class("full-fields pinned-full-fields")

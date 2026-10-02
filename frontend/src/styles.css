@@ -1275,26 +1275,34 @@ dialog::backdrop {
   grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) 48px;
 }
 
-/* ネストした値は表から開き、階層の経路で上へ戻る。 */
+/* ネストした値は表から開き、行ヘッダーの経路で上へ戻る。 */
+.path-slot {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
 .record-path {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 16px;
+  gap: 2px;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-muted);
 }
-.record-path button {
+.detail-header .record-path button {
   min-height: 28px;
-  padding: 2px 8px;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--color-rule);
   font-family: inherit;
   font-size: inherit;
   overflow-wrap: anywhere;
+  white-space: normal;
 }
 .record-path [aria-current] {
-  padding: 2px 8px;
+  padding: 2px 6px;
   color: var(--color-ink);
   font-weight: 600;
   overflow-wrap: anywhere;
@@ -1320,4 +1328,153 @@ dialog::backdrop {
   padding: 2px 8px;
   border-radius: 0;
   font-size: 11px;
+}
+
+/* 確定操作と状態は行ヘッダーにまとめ、表を上から始める。 */
+.detail-header {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.detail-title {
+  flex: 1 1 auto;
+}
+.detail-header .record-actions {
+  margin: 0 8px 0 auto;
+  justify-content: flex-end;
+}
+.detail-header .record-actions:empty {
+  display: none;
+}
+.detail-header .record-actions button {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper-2);
+}
+.detail-header .record-actions button.primary:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.record-status {
+  color: var(--color-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.record-status[data-dirty="true"] {
+  color: var(--color-accent);
+}
+button.primary:disabled {
+  background: var(--color-paper-2);
+  border-color: var(--color-rule);
+  color: var(--color-muted);
+  font-weight: 400;
+}
+.detail-scroll {
+  padding-top: 16px;
+}
+
+/* KEY の列を値に寄せ、1行を50px台に収める。文字の大きさは行ヘッダーで変える。 */
+.metadata-heading,
+.compact-field {
+  grid-template-columns: clamp(150px, 40%, 320px) minmax(0, 1fr) 48px;
+}
+.compact-field {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.field textarea,
+.compact-field textarea,
+.compact-field > select,
+.field-jump,
+.null-value {
+  font-size: var(--record-font-size, 14px);
+}
+.field-header > label,
+.compact-field .field-header > label {
+  font-size: max(11px, calc(var(--record-font-size, 14px) - 2px));
+}
+.field textarea {
+  resize: none;
+}
+
+/* 枠の下端をドラッグして高さを変える。 */
+.field {
+  position: relative;
+}
+.field-resize {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 7px;
+  z-index: 2;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.field-resize::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  height: 3px;
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity var(--dur-micro) var(--ease-out);
+}
+.field-resize:hover::after,
+.field-resize:active::after {
+  opacity: 0.7;
+}
+.field-settings-panel input[type="range"] {
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--color-accent);
+}
+
+/* ピンと枠サイズの操作は、行に触れたときだけ表示する。 */
+@media (hover: hover) {
+  .field-pin:not([aria-pressed="true"]),
+  .field-settings:not([open]) > summary {
+    opacity: 0;
+  }
+  .field:hover .field-pin,
+  .field:focus-within .field-pin,
+  .field:hover .field-settings > summary,
+  .field:focus-within .field-settings > summary {
+    opacity: 1;
+  }
+}
+
+/* スクロールバーを配色に合わせる。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-control) transparent;
+}
+.compact-field > textarea {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+/* 配置は3つのボタンから、押すだけで切り替える。 */
+.placement-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  font-size: 12px;
+}
+.placement-picker > span {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+.placement-picker button {
+  min-height: 32px;
+  padding: 4px 2px;
+  border-radius: 0;
+}
+.placement-picker button + button {
+  border-left: 0;
+}
+.placement-picker button.active {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
 }

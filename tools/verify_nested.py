@@ -39,9 +39,9 @@ def verify() -> None:
 
         # 表から2階層下へ移動し、末端の値を個別の欄で編集する。
         page.get_by_role("button", name="aaa を開く", exact=True).click()
-        expect(path).to_have_text("行aaa")
+        expect(path).to_have_text("ROW 001aaa")
         page.get_by_role("button", name="bbb を開く", exact=True).click()
-        expect(path).to_have_text("行aaabbb")
+        expect(path).to_have_text("ROW 001aaabbb")
         expect(page.get_by_label("ccc", exact=True)).to_have_value("12345678901234567890")
         expect(page.get_by_role("button", name="eee を開く", exact=True)).to_contain_text("0 KEY")
         page.screenshot(path=str(output / "nested.png"))
@@ -49,33 +49,31 @@ def verify() -> None:
         # 型に合わない入力は、階層の移動と確定を止める。
         page.get_by_label("ccc", exact=True).fill("12a")
         path.get_by_role("button", name="aaa", exact=True).click()
-        expect(path).to_have_text("行aaabbb")
+        expect(path).to_have_text("ROW 001aaabbb")
         expect(page.locator('[data-key="ccc"] .error-text')).to_be_visible()
         page.get_by_label("ccc", exact=True).fill("12345678901234567891")
         page.get_by_label("ddd", exact=True).fill("world")
 
         # 未確定のまま上の階層へ戻っても入力を保持し、確定で行全体へ反映する。
-        path.get_by_role("button", name="行", exact=True).click()
+        path.get_by_role("button", name="ROW 001", exact=True).click()
         expect(path).to_have_count(0)
         page.get_by_role("button", name="aaa を開く", exact=True).click()
         page.get_by_role("button", name="bbb を開く", exact=True).click()
         expect(page.get_by_label("ddd", exact=True)).to_have_value("world")
         page.get_by_role("button", name="変更を確定", exact=True).click()
         expect(page.get_by_role("button", name="変更を確定", exact=True)).to_be_disabled()
-        expect(path).to_have_text("行aaabbb")
+        expect(path).to_have_text("ROW 001aaabbb")
         expect(page.get_by_label("ccc", exact=True)).to_have_value("12345678901234567891")
-        expect(page.get_by_role("button", name="行 1", exact=True)).to_contain_text('"ddd":"world"')
-        expect(page.get_by_role("button", name="行 1", exact=True)).to_contain_text('"ccc":12345678901234567891')
 
         # 取り消すと確定済みの値へ戻り、表示中の階層は保つ。
         page.get_by_label("ddd", exact=True).fill("discard")
         page.get_by_role("button", name="取り消す", exact=True).click()
         expect(page.get_by_label("ddd", exact=True)).to_have_value("world")
-        expect(path).to_have_text("行aaabbb")
+        expect(path).to_have_text("ROW 001aaabbb")
 
         # 別の行でも同じ階層を保ち、開けない行では開ける階層まで戻る。
         page.get_by_role("button", name="行 2", exact=True).click()
-        expect(path).to_have_text("行aaabbb")
+        expect(path).to_have_text("ROW 002aaabbb")
         expect(page.get_by_label("ddd", exact=True)).to_have_value("second")
         page.get_by_role("button", name="行 3", exact=True).click()
         expect(path).to_have_count(0)
@@ -84,25 +82,28 @@ def verify() -> None:
         # 配列は添字を KEY として表示し、要素のオブジェクトも開ける。
         page.get_by_role("button", name="行 1", exact=True).click()
         page.get_by_role("button", name="items を開く", exact=True).click()
-        expect(path).to_have_text("行items")
+        expect(path).to_have_text("ROW 001items")
         expect(page.get_by_label("[1]", exact=True)).to_have_value("two")
         page.get_by_role("button", name="[0] を開く", exact=True).click()
-        expect(path).to_have_text("行items[0]")
+        expect(path).to_have_text("ROW 001items[0]")
         expect(page.get_by_label("id", exact=True)).to_have_value("1")
         page.get_by_label("id", exact=True).fill("7")
         page.get_by_role("button", name="変更を確定", exact=True).click()
         expect(page.get_by_role("button", name="変更を確定", exact=True)).to_be_disabled()
-        expect(page.get_by_role("button", name="行 1", exact=True)).to_contain_text('"items":[{"id":7},"two"]')
+        expect(path).to_have_text("ROW 001items[0]")
+        expect(page.get_by_label("id", exact=True)).to_have_value("7")
+        path.get_by_role("button", name="items", exact=True).click()
+        expect(page.get_by_role("button", name="[0] を開く", exact=True)).to_contain_text("1 KEY")
         page.screenshot(path=str(output / "array.png"))
 
         # 配置を「右の詳細」にすると JSON を直接編集でき、そこからも開ける。
-        path.get_by_role("button", name="行", exact=True).click()
+        path.get_by_role("button", name="ROW 001", exact=True).click()
         page.get_by_label("aaa の枠サイズ", exact=True).click()
-        page.get_by_label("aaa の配置", exact=True).select_option("detail")
+        page.get_by_role("group", name="aaa の配置", exact=True).get_by_role("button", name="右の詳細", exact=True).click()
         expect(page.locator('.detail-fields [data-key="aaa"] textarea')).to_be_visible()
         page.get_by_role("button", name="aaa を開く", exact=True).click()
-        expect(path).to_have_text("行aaa")
-        path.get_by_role("button", name="行", exact=True).click()
+        expect(path).to_have_text("ROW 001aaa")
+        path.get_by_role("button", name="ROW 001", exact=True).click()
         page.get_by_label("aaa の枠サイズ", exact=True).click()
         page.locator('[data-key="aaa"]').get_by_role("button", name="自動サイズに戻す").click()
         expect(page.locator('.metadata-table [data-key="aaa"]')).to_have_count(1)
@@ -118,7 +119,7 @@ def verify() -> None:
         )
         assert "aaa\x00bbb" in candidates, candidates
         page.get_by_label("bbb をピン留め解除", exact=True).click()
-        path.get_by_role("button", name="行", exact=True).click()
+        path.get_by_role("button", name="ROW 001", exact=True).click()
 
         for width in [375, 768, 1255]:
             page.set_viewport_size({"width": width, "height": 742})
@@ -126,7 +127,7 @@ def verify() -> None:
             page.get_by_role("button", name="bbb を開く", exact=True).click()
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             page.screenshot(path=str(output / f"nested-{width}.png"))
-            path.get_by_role("button", name="行", exact=True).click()
+            path.get_by_role("button", name="ROW 001", exact=True).click()
 
         assert not errors, errors
         (output / "report.json").write_text(

@@ -39,7 +39,7 @@ def verify() -> None:
         panel = field.locator("details")
         toggle = page.get_by_label("base_actual_tokens の枠サイズ", exact=True)
         toggle.click()
-        page.get_by_label("base_actual_tokens の配置", exact=True).select_option("full")
+        page.get_by_role("group", name="base_actual_tokens の配置", exact=True).get_by_role("button", name="全幅", exact=True).click()
         expect(panel).not_to_have_attribute("open", "")
         expect(field).to_have_class(re.compile(r"\bwide\b"))
         toggle.click()

@@ -15,6 +15,7 @@ Playwright は既存の Chromium を `headless=False` で起動し、検証ご�
 - `verify_favicon.py`：タブ用 SVG アイコンが配信され、`favicon.ico` への余分なリクエストが出ないことを実画面で確認。
 - `verify_field_layout.py`：短い値の表・詳細配置と設定パネルの終了操作を、1255×742 の実画面で確認。
 - `verify_nested.py`：ネストした object / array を表から開く操作、経路での復帰、末端の値の編集と確定を実画面で確認。
+- `verify_usability.py`：表の KEY 列の幅と行の高さ、行ヘッダーにまとめた経路・確定操作、高さの入力・スライダー・ドラッグ、文字サイズ、行一覧のタイトルを実画面で確認。
 - `verify_edges.py`：実 OPFS ディレクトリへの3方式の分割と、診断・保存失敗・タブ排他・元ファイル変更を検証。`uv run python tools/verify_edges.py` で実行します。
 - `native_dialog.py`：X11 環境で表示中のファイルダイアログにキーを送る補助。`--native-dialogs` を付けると、実ファイルへの書き出しも検証します。実行中はキーボード・マウスを操作しないでください。X11 以外では保存ダイアログを手動で確認してください。
 - `browser_metrics.py`：CDP でページと Worker の V8 ヒープ・ArrayBuffer 領域を測定。ブラウザ全体の RSS や OS キャッシュではありません。
